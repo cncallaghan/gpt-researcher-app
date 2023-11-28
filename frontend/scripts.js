@@ -8,12 +8,42 @@ const GPTResearcher = (() => {
     }
 
     const startResearch = () => {
+      // Clear previous output and report
       document.getElementById("output").innerHTML = "";
       document.getElementById("reportContainer").innerHTML = "";
-      updateState("in_progress")
+      updateState("in_progress");
   
-      addAgentResponse({ output: "🤔 Thinking about research questions for the task..." });
+      // Get user input values
+      const task = document.querySelector('input[name="task"]').value;
+      const report_type = document.querySelector('select[name="report_type"]').value;
   
+      // Create the payload for the AJAX request
+      const requestData = {
+          query: task,
+          report_type: report_type,
+      };
+  
+      // Send an AJAX request to the Flask API
+      fetch('/config', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+      })
+      .then(response => response.json())
+      .then(data => {
+          // Handle the response here
+          // For example, update the UI to show that the research has started
+          console.log('Research started:', data.message);
+          addAgentResponse({ output: "🔍 Research started. Please wait for the results." });
+          // You might want to poll the server for results or updates here
+      })
+      .catch(error => {
+          console.error('Error starting research:', error);
+          updateState("error");
+          addAgentResponse({ output: "❌ Error starting research." });
+      });
       listenToSockEvents();
     };
   

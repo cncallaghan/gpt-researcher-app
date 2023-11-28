@@ -7,6 +7,10 @@ app = Flask(__name__)
 # config = Config()  # Instantiating the Config class
 # stringify config
 
+def is_valid_string(s):
+    """Check if the input is a valid string."""
+    return isinstance(s, str) and len(s.strip()) > 0
+
 def capitalize_text(data):
     if isinstance(data, dict):
         return {k: capitalize_text(v) for k, v in data.items()}
@@ -21,6 +25,10 @@ def capitalize_text(data):
 @app.route("/config", methods=["POST"])
 def post_config():
     data = request.get_json()
+    query = data.get("research_text")
+    report_type = data.get("model")
+    if not is_valid_string(query) or not is_valid_string(report_type):
+        return jsonify({"error": "Invalid input"}), 400
     try:
         capitalized_data = capitalize_text(data)  # Capitalize text
 
@@ -62,7 +70,7 @@ def validate_config_data(data):
 #         return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(debug=True, host='ec2-44-204-192-19.compute-1.amazonaws.com')
+    app.run(debug=True, host='127.0.0.1')
 
 
 
