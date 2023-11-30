@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 # from config import Config
 import json
 import requests
 
 app = Flask(__name__)
+CORS(app)
 # config = Config()  # Instantiating the Config class
 # stringify config
 
@@ -30,14 +32,12 @@ def post_config():
     if not is_valid_string(query) or not is_valid_string(report_type):
         return jsonify({"error": "Invalid input"}), 400
     try:
-        capitalized_data = capitalize_text(data)  # Capitalize text
-
         # Sending the modified data to another Lambda function
-        outbound_url = "https://example.com/outbound-lambda"  # Replace with actual URL
-        response = requests.post(outbound_url, json=capitalized_data)
+        outbound_url = "http://127.0.0.1:8000"  # Replace with actual URL
+        response = requests.post(outbound_url, json=data)
 
         # return jsonify({"message": "Data received, processed, and sent successfully"}), 200
-        return capitalized_data
+        return data
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

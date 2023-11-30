@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -36,6 +36,47 @@ async def read_root(request: Request):
     return templates.TemplateResponse('index.html', {"request": request, "report": None})
 
 
+# @app.post("/start-research")
+# async def start_research(request: ResearchRequest):
+#     try:
+#         # Process the research request
+#         # This will depend on how your research process is implemented.
+#         # For example, you might use a function from your WebSocketManager.
+#         report = await manager.start_research(request.task, request.report_type)
+
+#         # Convert the report to PDF and get the file path
+#         pdf_path = await write_md_to_pdf(report)
+#         return {"message": "Research completed", "pdf_path": pdf_path}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/submit_report")
+async def submit_report(request: ResearchRequest):
+    # Extracting the values
+    task = request.task
+    report_type = request.report_type
+    agent = request.agent
+
+    # Implement your logic here
+    return {"message": "Report received", "task": task, "report_type": report_type, "agent": agent}
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data.startswith("start"):
+                json_data = json.loads(data[6:])
+                task = json_data.get("task")
+                report_type = json_data.get("report_type")
+                if task and report_type:
+                    report = await manager.start_streaming(task, report_type, websocket)
+                    path = await write_md_to_pdf(report)
+                    await websocket.send_json({"type": "path", "output": path})
+                else:
+                    print("Error: not enough parameters provided.")
+
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+        
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
