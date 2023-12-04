@@ -73,9 +73,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 task = json_data.get("task")
                 report_type = json_data.get("report_type")
                 temperature = json_data.get("temperature")
+                request_id = json_data.get("requestId")
                 if task and report_type:
                     report = await manager.start_streaming(task, report_type, websocket)
-                    path = await write_md_to_pdf(report)
+                    path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
                     file_name = os.path.basename(path)
                     s3 = boto3.client('s3')
@@ -83,7 +84,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif task and report_type and temperature:
                     Config.load_config_file(json_data.get("temperature"))
                     report = await manager.start_streaming(task, report_type, websocket)
-                    path = await write_md_to_pdf(report)
+                    path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
                     file_name = os.path.basename(path)
                     s3 = boto3.client('s3')

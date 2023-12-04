@@ -2,6 +2,7 @@ import aiofiles
 import urllib
 import uuid
 from md2pdf.core import md2pdf
+import server
 
 async def write_to_file(filename: str, text: str) -> None:
     """Asynchronously write text to a file in UTF-8 encoding.
@@ -16,17 +17,17 @@ async def write_to_file(filename: str, text: str) -> None:
     async with aiofiles.open(filename, "w", encoding='utf-8') as file:
         await file.write(text_utf8)
 
-async def write_md_to_pdf(text: str) -> str:
+async def write_md_to_pdf(text: str, request_id: str) -> str:
     """Converts Markdown text to a PDF file and returns the file path.
 
     Args:
         text (str): Markdown text to convert.
+        request_id (str): Request ID to use as the file name.
 
     Returns:
         str: The encoded file path of the generated PDF.
     """
-    task = uuid.uuid4().hex
-    file_path = f"outputs/{task}"
+    file_path = f"outputs/{request_id}"
     await write_to_file(f"{file_path}.md", text)
 
     try:
@@ -42,3 +43,4 @@ async def write_md_to_pdf(text: str) -> str:
 
     encoded_file_path = urllib.parse.quote(f"{file_path}.pdf")
     return encoded_file_path
+ 
