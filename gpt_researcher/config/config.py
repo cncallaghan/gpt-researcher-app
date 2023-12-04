@@ -4,7 +4,7 @@ import json
 
 class Config:
     """Config class for GPT Researcher."""
-
+    
     def __init__(self, config_file: str = None):
         """Initialize the config class."""
         self.config_file = config_file

@@ -5,7 +5,9 @@ from pydantic import BaseModel
 import json
 import os
 from gpt_researcher.utils.websocket_manager import WebSocketManager
+from gpt_researcher.config.config import Config
 from .utils import write_md_to_pdf
+import boto3
 
 
 class ResearchRequest(BaseModel):
@@ -59,24 +61,7 @@ async def submit_report(request: ResearchRequest):
 
     # Implement your logic here
     return {"message": "Report received", "task": task, "report_type": report_type, "agent": agent}
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            if data.startswith("start"):
-                json_data = json.loads(data[6:])
-                task = json_data.get("task")
-                report_type = json_data.get("report_type")
-                if task and report_type:
-                    report = await manager.start_streaming(task, report_type, websocket)
-                    path = await write_md_to_pdf(report)
-                    await websocket.send_json({"type": "path", "output": path})
-                else:
-                    print("Error: not enough parameters provided.")
 
-    except WebSocketDisconnect:
-        await manager.disconnect(websocket)
-        
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -87,10 +72,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 json_data = json.loads(data[6:])
                 task = json_data.get("task")
                 report_type = json_data.get("report_type")
+                temperature = json_data.get("temperature")
                 if task and report_type:
                     report = await manager.start_streaming(task, report_type, websocket)
                     path = await write_md_to_pdf(report)
                     await websocket.send_json({"type": "path", "output": path})
+                    file_name = os.path.basename(path)
+                    s3 = boto3.client('s3')
+                    s3.upload_file(path, 'research-report-test', file_name)
+                elif task and report_type and temperature:
+                    Config.load_config_file(json_data.get("temperature"))
+                    report = await manager.start_streaming(task, report_type, websocket)
+                    path = await write_md_to_pdf(report)
+                    await websocket.send_json({"type": "path", "output": path})
+                    file_name = os.path.basename(path)
+                    s3 = boto3.client('s3')
+                    s3.upload_file(path, 'research-report-test', file_name)
+
                 else:
                     print("Error: not enough parameters provided.")
 
