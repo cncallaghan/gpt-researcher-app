@@ -8,6 +8,7 @@ from gpt_researcher.master.agent import GPTResearcher
 
 class WebSocketManager:
     """Manage websockets"""
+
     def __init__(self):
         """Initialize the WebSocketManager class."""
         self.active_connections: List[WebSocket] = []
@@ -46,23 +47,36 @@ class WebSocketManager:
             del self.sender_tasks[websocket]
             del self.message_queues[websocket]
 
-    async def start_streaming(self, task, report_type, websocket):
+    async def start_streaming(self, task, report_type, websocket, user_url_list=None):
         """Start streaming the output."""
-        report = await run_agent(task, report_type, websocket)
+        report = await run_agent(
+            task=task,
+            report_type=report_type,
+            websocket=websocket,
+            user_url_list=user_url_list,
+        )
         return report
 
 
-async def run_agent(task, report_type, websocket):
+async def run_agent(task, report_type, websocket, user_url_list=None):
     """Run the agent."""
     # measure time
     start_time = datetime.datetime.now()
     # add customized JSON config file path here
     config_path = None
     # run agent
-    researcher = GPTResearcher(task, report_type, config_path, websocket)
+    researcher = GPTResearcher(
+        query=task,
+        report_type=report_type,
+        user_url_list=user_url_list,
+        config_path=config_path,
+        websocket=websocket,
+    )
     report = await researcher.run()
     # measure time
     end_time = datetime.datetime.now()
-    await websocket.send_json({"type": "logs", "output": f"\nTotal run time: {end_time - start_time}\n"})
+    await websocket.send_json(
+        {"type": "logs", "output": f"\nTotal run time: {end_time - start_time}\n"}
+    )
 
     return report

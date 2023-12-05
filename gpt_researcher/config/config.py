@@ -1,11 +1,25 @@
 # config file
 import json
+import threading
 
 
 class Config:
     """Config class for GPT Researcher."""
-    
-    def __init__(self, config_file: str = None):
+
+    __instance = None
+    __lock = threading.Lock()
+
+    def __new__(cls, config_file: str = None):
+        if cls.__instance is None:
+            with cls.__lock:  # auto aquire and release lock
+                if cls.__instance is None:
+                    print("Creating config object")
+                    cls.__instance = super(Config, cls).__new__(cls)
+                    cls.__init_variables(cls, config_file)
+
+        return cls.__instance
+
+    def __init_variables(self, config_file: str = None):
         """Initialize the config class."""
         self.config_file = config_file
         self.retriever = "tavily"
@@ -17,14 +31,16 @@ class Config:
         self.browse_chunk_max_length = 8192
         self.summary_token_limit = 700
         self.temperature = 0.6
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)" \
-                          " Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+        self.user_agent = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)"
+            " Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
+        )
         self.memory_backend = "local"
         self.total_words = 1000
         self.report_format = "apa"
         self.max_iterations = 3
 
-        self.load_config_file()
+        self.load_config_file(self)
 
     def load_config_file(self) -> None:
         """Load the config file."""
@@ -34,4 +50,3 @@ class Config:
             config = json.load(f)
         for key, value in config.items():
             self.__dict__[key] = value
-
