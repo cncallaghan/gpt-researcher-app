@@ -8,6 +8,7 @@ from gpt_researcher.utils.websocket_manager import WebSocketManager
 from gpt_researcher.config.config import Config
 from .utils import write_md_to_pdf
 from mylogger import LoggerSingleton
+import boto3
 
 
 class ResearchRequest(BaseModel):
@@ -66,13 +67,13 @@ async def submit_report(request: ResearchRequest):
     agent = request.agent
 
     # Implement your logic here
+
     return {
         "message": "Report received",
         "task": task,
         "report_type": report_type,
         "agent": agent,
     }
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -90,10 +91,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 report_type = json_data.get("report_type")
                 temperature = json_data.get("temperature")
                 user_url_list = json_data.get("user_url_list", None)
+                request_id = json_data.get("requestId")
 
                 logger.log_debug(
                     "server.py - websocket_endpoint: user_url_list: %s", user_url_list
                 )
+                
 
                 if task and report_type:
                     report = await manager.start_streaming(
@@ -102,8 +105,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         user_url_list=user_url_list,
                         websocket=websocket,
                     )
-                    path = await write_md_to_pdf(report)
+                    path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
+                    file_name = os.path.basename(path)
+                    s3 = boto3.client('s3')
+                    s3.upload_file(path, 'research-report-test', file_name)
 
                 elif task and report_type and temperature:
                     # normalize temprature
@@ -118,8 +124,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         user_url_list=user_url_list,
                         websocket=websocket,
                     )
-                    path = await write_md_to_pdf(report)
+                    path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
+                    file_name = os.path.basename(path)
+                    s3 = boto3.client('s3')
+                    s3.upload_file(path, 'research-report-test', file_name)
+
 
                 else:
                     print("Error: not enough parameters provided.")
