@@ -87,17 +87,27 @@ async def websocket_endpoint(websocket: WebSocket):
             if data.startswith("start"):
                 json_data = json.loads(data[6:])
                 task = json_data.get("task")
+                request_id = json_data.get("request_id")
+                user_files = json_data.get("user_files")
                 report_type = json_data.get("report_type")
-                temperature = json_data.get("temperature")
+                temperature = json_data.get("temperature", None)
                 user_url_list = json_data.get("user_url_list", None)
 
                 logger.log_debug(
-                    "server.py - websocket_endpoint: user_url_list: %s", user_url_list
+                    "server.py - websocket_endpoint: task: %s, request_id: %s, user_files: %s, report_type: %s, temperature: %s, user_url_list: %s",
+                    task,
+                    request_id,
+                    user_files,
+                    report_type,
+                    temperature,
+                    user_url_list,
                 )
 
                 if task and report_type:
                     report = await manager.start_streaming(
                         task=task,
+                        request_id=request_id,
+                        user_files=user_files,
                         report_type=report_type,
                         user_url_list=user_url_list,
                         websocket=websocket,
