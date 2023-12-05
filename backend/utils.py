@@ -2,7 +2,6 @@ import aiofiles
 import urllib
 import uuid
 from md2pdf.core import md2pdf
-import server
 
 async def write_to_file(filename: str, text: str) -> None:
     """Asynchronously write text to a file in UTF-8 encoding.
