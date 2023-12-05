@@ -3,7 +3,12 @@ from gpt_researcher.utils.llm import *
 from gpt_researcher.scraper import Scraper
 from gpt_researcher.master.prompts import *
 import json
+import os
 from mylogger import LoggerSingleton
+import boto3
+from langchain.document_loaders import PyMuPDFLoader
+import fitz
+
 
 logger = LoggerSingleton()
 
@@ -74,6 +79,36 @@ async def choose_agent(query, cfg):
             "Default Agent",
             "You are an AI critical thinker research assistant. Your sole purpose is to write well written, critically acclaimed, objective and structured reports on given text.",
         )
+
+
+async def parse_files(request_id):
+    user_files_bucket = boto3.client("s3")
+    bucket_name = "gpt-researcher-user-file-bucket"
+    prefix = request_id + "/"
+
+    object_list = user_files_bucket.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+
+    logger.log_debug("functions.py- parse_files: s3 object list: %s", object_list)
+    key_list = [content["Key"] for content in object_list.get("Contents", [])]
+
+    content = []
+    for key in key_list:
+        file = user_files_bucket.get_object(Bucket=bucket_name, Key=key)
+        file_type = os.path.splitext(key)[1].lower()
+
+        if file_type == ".pdf":
+            pdf_stream = file["Body"].read()
+            doc = fitz.open(stream=pdf_stream, filetype="pdf")
+
+            pdf_content = ""
+            for page_num in range(doc.page_count):
+                page = doc[page_num]
+                pdf_content += page.get_text()
+            content.append({"url": key, "raw_content": pdf_content})
+
+    logger.log_debug("functions.py- parse_files: pdf content: %s", content)
+
+    return content
 
 
 async def get_sub_queries(query, agent_role_prompt, cfg):
@@ -255,7 +290,7 @@ async def generate_report(
     return report
 
 
-async def stream_output(type, output, websocket=None, logging=False):
+async def stream_output(type, output, websocket=None, logging=True):
     """
     Streams output to the websocket
     Args:

@@ -47,10 +47,14 @@ class WebSocketManager:
             del self.sender_tasks[websocket]
             del self.message_queues[websocket]
 
-    async def start_streaming(self, task, report_type, websocket, user_url_list=None):
+    async def start_streaming(
+        self, task, request_id, user_files, report_type, websocket, user_url_list=None
+    ):
         """Start streaming the output."""
         report = await run_agent(
             task=task,
+            request_id=request_id,
+            user_files=user_files,
             report_type=report_type,
             websocket=websocket,
             user_url_list=user_url_list,
@@ -58,7 +62,9 @@ class WebSocketManager:
         return report
 
 
-async def run_agent(task, report_type, websocket, user_url_list=None):
+async def run_agent(
+    task, request_id, user_files, report_type, websocket, user_url_list=None
+):
     """Run the agent."""
     # measure time
     start_time = datetime.datetime.now()
@@ -67,6 +73,8 @@ async def run_agent(task, report_type, websocket, user_url_list=None):
     # run agent
     researcher = GPTResearcher(
         query=task,
+        request_id=request_id,
+        user_files=user_files,
         report_type=report_type,
         user_url_list=user_url_list,
         config_path=config_path,
