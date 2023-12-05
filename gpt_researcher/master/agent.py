@@ -12,7 +12,14 @@ class GPTResearcher:
     """
 
     def __init__(
-        self, query, report_type, user_url_list=None, config_path=None, websocket=None
+        self,
+        query,
+        request_id,
+        user_files,
+        report_type,
+        user_url_list=None,
+        config_path=None,
+        websocket=None,
     ):
         """
         Initialize the GPT Researcher class.
@@ -23,6 +30,8 @@ class GPTResearcher:
             websocket:
         """
         self.query = query
+        self.user_files = user_files
+        self.request_id = request_id
         self.user_url_list = user_url_list
         self.agent = None
         self.role = None
@@ -43,6 +52,16 @@ class GPTResearcher:
         # Generate Agent
         self.agent, self.role = await choose_agent(self.query, self.cfg)
         await stream_output("logs", self.agent, self.websocket)
+
+        # check if user_files true, download and parse them
+        if self.user_files:
+            await stream_output(
+                "logs",
+                f"\nDownloading files from s3 for request_id: '{self.request_id}'...",
+                self.websocket,
+            )
+            context = await self.run_user_files(self.request_id)
+            self.context.append(context)
 
         # Run user url list if user_url_list is not null
         if self.user_url_list is not None:
@@ -171,4 +190,20 @@ class GPTResearcher:
             cfg=self.cfg,
             websocket=self.websocket,
         )
+        return summary
+
+    async def run_user_files(self, request_id):
+        content = await parse_files(request_id)
+
+        summary = await summarize(
+            content=content,
+            query=self.query,
+            agent_role_prompt=self.role,
+            cfg=self.cfg,
+            websocket=self.websocket,
+        )
+
+        logger.log_debug("agent.py - run_user_files: pdf_content: %s", content)
+        logger.log_debug("agent.py - run_user_files: summary: %s", summary)
+
         return summary
