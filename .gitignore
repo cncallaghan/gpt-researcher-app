@@ -14,3 +14,4 @@ node_modules
 .docusaurus
 build
 docs/build
+nohup.out
