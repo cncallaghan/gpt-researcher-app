@@ -75,6 +75,7 @@ async def submit_report(request: ResearchRequest):
         "agent": agent,
     }
 
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -93,7 +94,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 report_type = json_data.get("report_type")
                 temperature = json_data.get("temperature", None)
                 user_url_list = json_data.get("user_url_list", None)
-                request_id = json_data.get("requestId")
+
+                s3 = boto3.client("s3")
 
                 logger.log_debug(
                     "server.py - websocket_endpoint: task: %s, request_id: %s, user_files: %s, report_type: %s, temperature: %s, user_url_list: %s",
@@ -104,7 +106,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     temperature,
                     user_url_list,
                 )
-                
 
                 if task and report_type:
                     report = await manager.start_streaming(
@@ -118,8 +119,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
                     file_name = os.path.basename(path)
-                    s3 = boto3.client('s3')
-                    s3.upload_file(path, 'research-report-test', file_name)
+                    s3.upload_file(
+                        path, "gpt-researcher-research-report-bucket", file_name
+                    )
 
                 elif task and report_type and temperature:
                     # normalize temprature
@@ -137,9 +139,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     path = await write_md_to_pdf(report, request_id)
                     await websocket.send_json({"type": "path", "output": path})
                     file_name = os.path.basename(path)
-                    s3 = boto3.client('s3')
-                    s3.upload_file(path, 'research-report-test', file_name)
-
+                    s3.upload_file(
+                        path, "gpt-researcher-research-report-bucket", file_name
+                    )
 
                 else:
                     print("Error: not enough parameters provided.")
