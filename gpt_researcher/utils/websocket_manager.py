@@ -48,7 +48,13 @@ class WebSocketManager:
             del self.message_queues[websocket]
 
     async def start_streaming(
-        self, task, request_id, user_files, report_type, websocket, user_url_list=None
+        self,
+        task,
+        request_id,
+        user_files,
+        report_type,
+        websocket=None,
+        user_url_list=None,
     ):
         """Start streaming the output."""
         report = await run_agent(
@@ -63,7 +69,7 @@ class WebSocketManager:
 
 
 async def run_agent(
-    task, request_id, user_files, report_type, websocket, user_url_list=None
+    task, request_id, user_files, report_type, websocket=None, user_url_list=None
 ):
     """Run the agent."""
     # measure time
@@ -83,8 +89,9 @@ async def run_agent(
     report = await researcher.run()
     # measure time
     end_time = datetime.datetime.now()
-    await websocket.send_json(
-        {"type": "logs", "output": f"\nTotal run time: {end_time - start_time}\n"}
-    )
+    if websocket is not None:
+        await websocket.send_json(
+            {"type": "logs", "output": f"\nTotal run time: {end_time - start_time}\n"}
+        )
 
     return report

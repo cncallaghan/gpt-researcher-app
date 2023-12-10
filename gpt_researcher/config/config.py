@@ -1,6 +1,9 @@
 # config file
 import json
 import threading
+from mylogger import LoggerSingleton
+
+logger = LoggerSingleton()
 
 
 class Config:
@@ -13,10 +16,11 @@ class Config:
         if cls.__instance is None:
             with cls.__lock:  # auto aquire and release lock
                 if cls.__instance is None:
-                    print("Creating config object")
                     cls.__instance = super(Config, cls).__new__(cls)
                     cls.__init_variables(cls, config_file)
+                    logger.log_debug("config.py - Config file created")
 
+        logger.log_debug("config.py - Config file returned")
         return cls.__instance
 
     def __init_variables(self, config_file: str = None):
@@ -50,3 +54,7 @@ class Config:
             config = json.load(f)
         for key, value in config.items():
             self.__dict__[key] = value
+
+    def update_temperature(self, new_temperature: float) -> None:
+        self.temperature = new_temperature
+        logger.log_debug("config.py - Temperature updated: %s", self.temperature)

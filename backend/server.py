@@ -1,6 +1,8 @@
+from typing import List
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi import BackgroundTasks
 from pydantic import BaseModel
 import json
 import os
@@ -15,6 +17,10 @@ class ResearchRequest(BaseModel):
     task: str
     report_type: str
     agent: str
+    request_id: str
+    user_files: bool
+    temperature: int
+    user_url_list: List[str]
 
 
 app = FastAPI()
@@ -44,36 +50,45 @@ async def read_root(request: Request):
     )
 
 
-# @app.post("/start-research")
-# async def start_research(request: ResearchRequest):
-#     try:
-#         # Process the research request
-#         # This will depend on how your research process is implemented.
-#         # For example, you might use a function from your WebSocketManager.
-#         report = await manager.start_research(request.task, request.report_type)
+@app.post("/start_research")
+async def start_research(request: ResearchRequest, background_tasks: BackgroundTasks):
+    logger.log_debug("server.py - start_research: request: %s", request)
 
-#         # Convert the report to PDF and get the file path
-#         pdf_path = await write_md_to_pdf(report)
-#         return {"message": "Research completed", "pdf_path": pdf_path}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+    # normalize temprature and update config
+    temperature = request.temperature
+    temperature = round(temperature / 100, 2)
+    logger.log_debug("server.py - start_research: temperature: %s", temperature)
+    Config().update_temperature(temperature)
+
+    # asyncio.run(__run_research(request=request))
+    background_tasks.add_task(__run_research, request=request)
+    return "OK"
 
 
-@app.post("/submit_report")
-async def submit_report(request: ResearchRequest):
+async def __run_research(request):
     # Extracting the values
     task = request.task
     report_type = request.report_type
-    agent = request.agent
+    request_id = request.request_id
+    user_files = request.user_files
+    user_url_list = request.user_url_list
 
-    # Implement your logic here
+    report = await manager.start_streaming(
+        task=task,
+        request_id=request_id,
+        user_files=user_files,
+        report_type=report_type,
+        user_url_list=user_url_list,
+        websocket=None,
+    )
 
-    return {
-        "message": "Report received",
-        "task": task,
-        "report_type": report_type,
-        "agent": agent,
-    }
+    path = await write_md_to_pdf(report, request_id)
+    file_name = os.path.basename(path)
+    s3 = boto3.client("s3")
+    s3.upload_file(path, "gpt-researcher-research-report-bucket", file_name)
+    logger.log_debug(
+        "server.py - start_research: research complete & report uploaded: %s", file_name
+    )
 
 
 @app.websocket("/ws")
