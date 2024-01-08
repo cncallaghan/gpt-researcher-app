@@ -1,5 +1,6 @@
 import asyncio
 from gpt_researcher.utils.llm import *
+from gpt_researcher.utils.azure_llm import *
 from gpt_researcher.scraper import Scraper
 from gpt_researcher.master.prompts import *
 import json
@@ -63,7 +64,7 @@ async def choose_agent(query, cfg):
         agent_role_prompt: Agent role prompt
     """
     try:
-        response = await create_chat_completion(
+        response = await create_azure_chat_completion(
             model=cfg.smart_llm_model,
             messages=[
                 {"role": "system", "content": f"{auto_agent_instructions()}"},
@@ -124,7 +125,7 @@ async def get_sub_queries(query, agent_role_prompt, cfg):
 
     """
     max_research_iterations = cfg.max_iterations if cfg.max_iterations else 1
-    response = await create_chat_completion(
+    response = await create_azure_chat_completion(
         model=cfg.smart_llm_model,
         messages=[
             {"role": "system", "content": f"{agent_role_prompt}"},
@@ -232,7 +233,7 @@ async def summarize_url(query, raw_data, agent_role_prompt, cfg):
     """
     summary = ""
     try:
-        summary = await create_chat_completion(
+        summary = await create_azure_chat_completion(
             model=cfg.fast_llm_model,
             messages=[
                 {"role": "system", "content": f"{agent_role_prompt}"},
@@ -269,7 +270,7 @@ async def generate_report(
     generate_prompt = get_report_by_type(report_type)
     report = ""
     try:
-        report = await create_chat_completion(
+        report = await create_azure_chat_completion(
             model=cfg.smart_llm_model,
             messages=[
                 {"role": "system", "content": f"{agent_role_prompt}"},
