@@ -15,3 +15,5 @@ node_modules
 build
 docs/build
 nohup.out
+#Ignore app.log
+app.log

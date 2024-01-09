@@ -8,7 +8,7 @@ from gpt_researcher.master.prompts import auto_agent_instructions
 
 from fastapi import WebSocket
 from typing import Optional
-from openai import AzureOpenAI
+from openai import AzureOpenAI, AsyncAzureOpenAI
 
 
 class AzureOpenAISingleton:
@@ -22,6 +22,25 @@ class AzureOpenAISingleton:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = AzureOpenAI(
+                        api_version=os.environ["AZURE_OPENAI_VERSION"],
+                        api_key=os.environ["OPENAI_API_KEY"],
+                        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+                    )
+                    print(cls._instance.base_url)
+        return cls._instance
+
+
+class AsyncAzureOpenAISingleton:
+    _instance = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_instance(cls):
+        """Static access method."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = AsyncAzureOpenAI(
                         api_version=os.environ["AZURE_OPENAI_VERSION"],
                         api_key=os.environ["OPENAI_API_KEY"],
                         azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -46,14 +65,14 @@ async def create_azure_chat_completion(
         raise ValueError(f"Max tokens cannot be more than 8001, but got {max_tokens}")
 
     # create response
-    for attempt in range(1):  # maximum of 10 attempts
+    for attempt in range(10):  # maximum of 10 attempts
         response = await send_chat_completion_request(
             messages, model, temperature, max_tokens, stream, llm_provider, websocket
         )
         return response
 
-    logging.error("Failed to get response from OpenAI API")
-    raise RuntimeError("Failed to get response from OpenAI API")
+    logging.error("Failed to get response from Azure OpenAI API")
+    raise RuntimeError("Failed to get response from Azure OpenAI API")
 
 
 async def send_chat_completion_request(
@@ -61,15 +80,11 @@ async def send_chat_completion_request(
 ):
     if not stream:
         result = AzureOpenAISingleton.get_instance().chat.completions.create(
-            model="aoai-deploy-1",  # Change model here to use different models
+            model="aoai-deploy-1",
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
-            # provider=llm_provider,  # Change provider here to use a different API
         )
-        logging.info(result)
-        logging.info(type(result))
-        logging.info(dir(result))
         return result.choices[0].message.content
     else:
         return await stream_response(
@@ -80,18 +95,37 @@ async def send_chat_completion_request(
 async def stream_response(
     model, messages, temperature, max_tokens, llm_provider, websocket=None
 ):
-    paragraph = ""
     response = ""
 
-    for chunk in AzureOpenAISingleton.get_instance().chat.completions.create(
+    data = AzureOpenAISingleton.get_instance().chat.completions.create(
         model="aoai-deploy-1",
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
-        provider=llm_provider,
+    )
+
+    content = data.choices[0].message.content
+
+    if data is not None:
+        response += content
+
+    return response
+
+
+async def stream_response_async(
+    model, messages, temperature, max_tokens, llm_provider, websocket=None
+):
+    paragraph = ""
+    response = ""
+
+    for chunk in AsyncAzureOpenAISingleton.get_instance().chat.completions.create(
+        model="aoai-deploy-1",
+        messages=messages,
         stream=True,
+        temperature=temperature,
+        max_tokens=max_tokens,
     ):
-        content = chunk["choices"][0].get("delta", {}).get("content")
+        content = chunk.choices[0].message.content
         if content is not None:
             response += content
             paragraph += content
